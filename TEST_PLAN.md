@@ -5,12 +5,13 @@
 - Run commands from the repository root.
 - Ensure Python 3 is available as `python3`.
 
-## Exact behavior test
+## 精确行为测试 / Exact behavior test
 
 Run:
 
 ```sh
 python3 - <<'PY'
+import re
 import subprocess
 import sys
 
@@ -21,8 +22,13 @@ result = subprocess.run(
 )
 
 assert result.returncode == 0, result.returncode
-assert result.stdout == b"Hello, World!\n", result.stdout
 assert result.stderr == b"", result.stderr
+
+lines = result.stdout.splitlines(keepends=True)
+assert len(lines) == 2, result.stdout
+assert lines[0] == b"Hello, World!\n", lines[0]
+assert lines[1].endswith(b"\n"), lines[1]
+assert re.match(rb"^\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}\n$", lines[1]), lines[1]
 PY
 ```
 
@@ -31,7 +37,9 @@ Expected result: the command prints nothing and exits with status `0`.
 Pass criteria:
 
 - `hello_world.py` exits with status `0`.
-- Standard output is exactly the bytes `Hello, World!\n`.
+- 标准输出第 1 行严格为 `Hello, World!\n`（与历史字节一致）。
+- 标准输出第 2 行匹配正则 `^\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}$` 并以换行结尾。
+- 标准输出总行数为 2，且整体以换行结尾。
 - Standard error is empty.
 
 The test fails if any assertion raises an `AssertionError` or the command exits nonzero.
@@ -41,26 +49,27 @@ The test fails if any assertion raises an `AssertionError` or the command exits 
 Run:
 
 ```sh
-git add DESIGN.md TEST_PLAN.md hello_world.py
+git add DESIGN.md TEST_PLAN.md PROVENANCE.md hello_world.py
 git diff --cached --check
 ```
 
-Expected result: all three intended files are staged, and the check prints nothing and exits with status `0`. Any reported whitespace error is a failure.
+Expected result: all four intended files are staged, and the check prints nothing and exits with status `0`. Any reported whitespace error is a failure.
 
 ## Branch artifact check
 
 After the feature commit is created, run:
 
 ```sh
-git diff --check main...HEAD
-git diff --name-only main...HEAD
+git diff --check origin/main...HEAD
+git diff --name-only origin/main...HEAD
 ```
 
-Expected result: the whitespace check prints nothing and exits `0`; the name-only output includes all three repository-root paths:
+Expected result: the whitespace check prints nothing and exits `0`; the name-only output includes all four repository-root paths:
 
 ```text
 DESIGN.md
 TEST_PLAN.md
+PROVENANCE.md
 hello_world.py
 ```
 
